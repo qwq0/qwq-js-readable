@@ -1,7 +1,7 @@
 {
     "name": "qwq-js-readable",
-    "version": "1.0.0",
-    "main": "./src/main.js",
+    "version": "1.0.1",
+    "main": "./src/processingCode.js",
     "author": "qwq0",
     "type": "module",
     "dependencies": {
@@ -14,5 +14,13 @@
     },
     "bin": {
         "qwq-js-readable": "./src/main.js"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^25.0.7",
+        "@rollup/plugin-json": "^6.0.1",
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-terser": "^0.4.4",
+        "rollup": "^4.1.4",
+        "rollup-plugin-polyfill-node": "^0.12.0"
     }
 }
