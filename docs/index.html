@@ -4,10 +4,24 @@
 <head>
     <title>QwQ JS Readable</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=0.7, minimum-scale=0.7, maximum-scale=0.7, user-scalable=no" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=0.7, minimum-scale=0.7, maximum-scale=0.7, user-scalable=no" />
 </head>
 
 <body>
+    <script>
+        (() =>
+        {
+            let timeoutId = setTimeout(() =>
+            {
+                location.replace("./use_jsdelivr.html");
+            }, 1000 * 8);
+            window.addEventListener("load", () =>
+            {
+                clearTimeout(timeoutId);
+            });
+        })();
+    </script>
     <script src="./qwq_js_readable_browser.js"></script>
 </body>
 
