@@ -1,6 +1,6 @@
 {
     "name": "qwq-js-readable",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "main": "./src/processingCode.js",
     "author": "qwq0",
     "type": "module",
