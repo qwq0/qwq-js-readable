@@ -22,6 +22,7 @@ import { processingCode } from "./processingCode.js";
         await writeFile(argv.tree, JSON.stringify(acorn.parse(srcCode, { ecmaVersion: "latest" }), undefined, 4), { encoding: "utf-8" });
 
     await writeFile(argv.out, await processingCode(srcCode, Boolean(argv.module)), { encoding: "utf-8" });
+    console.log("Done");
 })();
 
 

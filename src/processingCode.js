@@ -18,9 +18,16 @@ export async function processingCode(srcCode, moduleMode)
 
 
     let result = await processingTree(codeTree);
+    let processingCount = 1;
 
     while (result.doWork == true)
+    {
         result = await processingTree(result.tree);
+
+        processingCount++;
+        if (processingCount > 100)
+            break;
+    }
 
     return await treeToCode(result.tree, moduleMode);
 }
@@ -38,6 +45,44 @@ async function processingTree(tree)
     tree = structuredClone(tree);
 
     let doWork = false;
+
+    /**
+     * 代码块的子节点给代码块的预留任务
+     * 当回溯到代码块时再执行
+     * @type {Map<Object, Map<Object, {
+     *  getReplace?: () => Array<Object>
+     * }>>}
+     */
+    let blockTask = new Map();
+
+    /**
+     * 展开代码块中的语句
+     * @param {Object} now
+     * @param {Object | undefined} parent
+     * @param {Array<Object>} replacementStatements
+     * @returns {Object}
+     */
+    function expandStatementInBlock(now, parent, replacementStatements)
+    {
+        if (parent && parent?.type == "BlockStatement") // 如果上层是代码块
+        {
+            if (!blockTask.has(parent))
+                blockTask.set(parent, new Map());
+            blockTask.get(parent).set(now, { // 设置父节点的取代任务
+                getReplace: () => replacementStatements
+            });
+        }
+        else // 上层不是代码块
+        {
+            Object.assign(now, {
+                type: "BlockStatement",
+                body: replacementStatements
+            });
+            doWork = true;
+        }
+
+        return now;
+    }
 
     acornWalk.fullAncestor(tree, (now, state, ancestor) =>
     {
@@ -98,18 +143,17 @@ async function processingTree(tree)
             {
                 delete now["expression"];
 
-                Object.assign(now, {
-                    type: "BlockStatement",
-                    body: expression.expressions.map((/** @type {Object} */ o) =>
+                expandStatementInBlock(
+                    now,
+                    ancestor[ancestor.length - 2],
+                    expression.expressions.map((/** @type {Object} */ o) =>
                     {
                         return {
                             type: "ExpressionStatement",
                             expression: o
                         };
                     })
-                });
-
-                doWork = true;
+                );
             }
             else if (
                 expression.type == "AssignmentExpression"
@@ -119,9 +163,6 @@ async function processingTree(tree)
                 if (rightValue.type == "ConditionalExpression") // 赋值套三目运算
                 {
                     delete now["expression"];
-
-                    now.type = "";
-
 
                     Object.assign(now, {
                         type: "IfStatement",
@@ -152,9 +193,10 @@ async function processingTree(tree)
                 {
                     delete now["expression"];
 
-                    Object.assign(now, {
-                        type: "BlockStatement",
-                        body: [
+                    expandStatementInBlock(
+                        now,
+                        ancestor[ancestor.length - 2],
+                        [
                             ...rightValue.expressions.slice(0, -1).map((/** @type {Object} */ o) =>
                             {
                                 return {
@@ -172,9 +214,7 @@ async function processingTree(tree)
                                 }
                             }
                         ]
-                    });
-
-                    doWork = true;
+                    );
                 }
             }
         }
@@ -210,6 +250,34 @@ async function processingTree(tree)
                     ]
                 });
                 doWork = true;
+            }
+        }
+        else if (now.type == "BlockStatement" && now["body"]) // 块语句
+        {
+            if (blockTask.has(now)) // 有来自子节点的预留任务
+            {
+                let taskMap = blockTask.get(now);
+
+                let processedBody = (/** @type {Array<Object>} */(now["body"])).map(oldChild =>
+                {
+                    if (taskMap.has(oldChild)) // 此子节点有预留任务
+                    {
+                        let ret = [oldChild];
+
+                        let taskObj = taskMap.get(oldChild);
+                        if (taskObj.getReplace)
+                            ret = taskObj.getReplace();
+
+                        if (ret.length != 1 || ret[0] != oldChild) // 进行了变化
+                            doWork = true;
+
+                        return ret;
+                    }
+                    else
+                        return oldChild;
+                });
+
+                now["body"] = processedBody.flat(1);
             }
         }
     });
@@ -264,7 +332,7 @@ async function treeToCode(tree, moduleMode)
             "no-lonely-if": ["error", true],
             curly: ["error", "multi-or-nest"]
         }
-    }, {});
+    }, undefined);
     if (lintResult.messages.length != 0)
         console.log("lint error:", lintResult.messages.map(o => `${o.message}\n${o.line}:${o.column}\n`).join("\n"));
 
